@@ -1,0 +1,50 @@
+# Replace {YOUR_LAN_IP} with your computer's actual Local Area Network IP address.
+# e.g., https://192.168.1.100
+https://{YOUR_LAN_IP} {
+
+    # Instructs Caddy to use a self-signed certificate, as this is an internal-only service.
+    # This avoids unnecessary attempts to contact public certificate authorities.
+    tls internal
+
+    # --- FIRST LAYER OF DEFENSE: Global Rate Limiting ---
+    # Protects against denial-of-service (DoS) attacks and rapid automated scanning.
+    rate_limit {
+        # The asterisk (*) is a matcher that applies this rule to ALL incoming requests.
+        *
+
+        # Defines the time period over which requests are counted. Here, it's 1 minute.
+        window 1m
+
+        # Sets the maximum number of requests allowed from a single IP address within the time window.
+        # If an IP exceeds 5 requests in 1 minute, subsequent requests from that IP will be blocked
+        # with a "429 Too Many Requests" error until the minute is over.
+        burst 5
+    }
+
+    # --- APPLICATION LOGIC: Reverse Proxy ---
+    # Forwards all legitimate requests that have passed the above checks
+    # to your backend FastAPI application running on localhost at port 8000.
+    reverse_proxy localhost:8000
+
+    # --- SECOND LAYER OF DEFENSE: User Authentication ---
+    # Enables HTTP Basic Authentication, which prompts the user for a username and password
+    # in a native browser dialog.
+    basicauth {
+        # Defines a user.
+        # IMPORTANT: The password here MUST be a bcrypt hash.
+        # DO NOT use a plaintext password. Generate the hash using the command:
+        # caddy hash-password --plaintext "your_very_strong_password"
+        admin {YOUR_PASSWORD_HASH}
+    }
+
+    # --- LOGGING CONFIGURATION ---
+    # Configures how Caddy records its access and error logs.
+    log {
+        # Tells Caddy to print logs directly to the console (standard output).
+        # This is useful for real-time monitoring when running Caddy from a terminal.
+        output stdout
+        
+        # Formats the logs in a human-readable, colorized format suitable for a console.
+        format console
+    }
+}

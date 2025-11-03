@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="pageTitle">Local-llm</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* --- THEME DEFINITIONS --- */
+        :root { /* Default Theme */
+            --bg-color: #f0f2f5; --sidebar-bg: #2c3e50; --chat-bg: #ffffff;
+            --text-color: #2c3e50; --sidebar-text: #ffffff; --primary-color: #3498db;
+            --user-msg-bg: #3498db; --user-msg-text: #ffffff;
+            --assistant-msg-bg: #ecf0f1; --assistant-msg-text: #2c3e50;
+            --input-bg: #f9f9f9; --border-color: #ddd; --watermark-color: rgba(0, 0, 0, 0.05);
+            --danger-color: #e74c3c;
+        }
+        body.theme-dark {
+            --bg-color: #121212; --sidebar-bg: #1e1e1e; --chat-bg: #242424;
+            --text-color: #e0e0e0; --sidebar-text: #e0e0e0; --primary-color: #bb86fc;
+            --user-msg-bg: #3700b3; --user-msg-text: #ffffff;
+            --assistant-msg-bg: #333333; --assistant-msg-text: #e0e0e0;
+            --input-bg: #1e1e1e; --border-color: #444; --watermark-color: rgba(255, 255, 255, 0.05);
+        }
+        body.theme-retro {
+            --bg-color: #000000; --sidebar-bg: #080808; --chat-bg: #0d0d0d;
+            --text-color: #00FF00; --sidebar-text: #00FF00; --primary-color: #00FF00;
+            --user-msg-bg: transparent; --user-msg-text: #00FF00;
+            --assistant-msg-bg: transparent; --assistant-msg-text: #00FF00;
+            --input-bg: #000000; --border-color: #00FF00; --watermark-color: rgba(0, 255, 0, 0.05);
+            font-family: 'Courier New', Courier, monospace;
+        }
+        body.theme-terminal {
+            --bg-color: #1e2430; --sidebar-bg: #151a23; --chat-bg: #282c34;
+            --text-color: #abb2bf; --sidebar-text: #abb2bf; --primary-color: #61afef;
+            --user-msg-bg: #353b45; --user-msg-text: #e5c07b;
+            --assistant-msg-bg: transparent; --assistant-msg-text: #abb2bf;
+            --input-bg: #21252b; --border-color: #3f444d; --watermark-color: rgba(255, 255, 255, 0.03);
+            font-family: 'Fira Code', 'Consolas', monospace;
+        }
+        body.theme-retro #new-chat-btn, body.theme-retro #submit-button, body.theme-retro .inline-editor-actions button { background-color: transparent; border: 1px solid var(--primary-color); color: var(--primary-color); }
+        body.theme-retro #new-chat-btn:hover, body.theme-retro #submit-button:hover, body.theme-retro .inline-editor-actions button:hover { background-color: var(--primary-color); color: var(--bg-color); }
+        body.theme-retro .inline-editor-actions button.cancel { color: var(--primary-color); border-color: var(--primary-color); }
+        body.theme-retro .inline-editor-actions button.cancel:hover { opacity: 0.7; background-color: transparent; }
+        
+        /* --- ** ROBUST LAYOUT ** --- */
+        html { box-sizing: border-box; }
+        *, *:before, *:after { box-sizing: inherit; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh; /* Fallback for older browsers */
+            height: 100dvh; /* ** KEY FIX for mobile keyboards ** */
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+            overflow: hidden;
+        }
+        #sidebar {
+            width: 250px;
+            background-color: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+            z-index: 1001;
+        }
+        #chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--chat-bg);
+            position: relative;
+            min-width: 0;
+        }
+        
+        @media (max-width: 768px) {
+            #sidebar {
+                position: absolute;
+                height: 100%;
+                transform: translateX(-100%); /* Start off-screen */
+            }
+            body.sidebar-toggled #sidebar {
+                transform: translateX(0); /* Slide in */
+            }
+        }
+        @media (min-width: 769px) {
+            #sidebar {
+                transform: translateX(-100%);
+            }
+            body.sidebar-toggled #sidebar {
+                transform: translateX(0);
+            }
+        }
+
+        /* --- Sidebar Content --- */
+        .sidebar-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #4a6fa5; padding-bottom: 10px; flex-shrink: 0; }
+        .sidebar-header h2 { margin: 0; font-size: 18px; }
+        .sidebar-header h2 { margin: 0; font-size: 18px; flex-grow: 1; text-align: center; }
+        #sidebar-close-btn { background: none; border: none; color: var(--sidebar-text); cursor: pointer; font-size: 24px; padding: 0 5px; }
+        .sidebar-controls { display: flex; align-items: center; gap: 5px; }
+        .sidebar-controls button { background: none; border: none; color: var(--sidebar-text); cursor: pointer; font-size: 18px; padding: 5px; }
+        #new-chat-btn { background-color: var(--primary-color); color: var(--user-msg-text); border: none; padding: 10px; width: 100%; border-radius: 5px; cursor: pointer; margin-top:15px; margin-bottom: 15px; font-size: 16px; flex-shrink: 0; }
+        #conversation-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
+        #conversation-list li { padding: 10px; margin-bottom: 5px; border-radius: 5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        #conversation-list li .title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-grow: 1; }
+        #conversation-list li:hover { background-color: #34495e; }
+        #conversation-list li.active { background-color: #4a6fa5; }
+        .conv-actions { display: flex; align-items: center; }
+        .conv-actions button { background: none; border: none; color: var(--sidebar-text); cursor: pointer; display: none; padding: 5px; font-size: 14px; }
+        #conversation-list li:hover .conv-actions button { display: inline; }
+        .sidebar-footer { margin-top: auto; padding-top: 15px; border-top: 1px solid #4a6fa5; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+        .custom-select-container { position: relative; user-select: none; width: 100%; }
+        .select-selected { background-color: var(--sidebar-bg); color: var(--sidebar-text); padding: 8px 12px; border: 1px solid #4a6fa5; border-radius: 5px; cursor: pointer; font-size: 12px; white-space: nowrap; text-align: center; }
+        .select-items { position: absolute; background-color: var(--sidebar-bg); border: 1px solid #4a6fa5; bottom: 100%; margin-bottom: 5px; left: 0; right: 0; z-index: 99; max-height: 200px; overflow-y: auto; border-radius: 5px; box-shadow: 0 -2px 10px rgba(0,0,0,0.2); }
+        .theme-selector-container { position: relative; }
+        #theme-toggle-btn { background-color: transparent; border: 1px solid #4a6fa5; color: var(--sidebar-text); padding: 8px; width: 100%; border-radius: 5px; cursor: pointer; font-size: 14px; text-align: center; }
+        #theme-options { display: none; position: absolute; bottom: 100%; left: 0; right: 0; background-color: var(--sidebar-bg); border: 1px solid #4a6fa5; border-radius: 5px; margin-bottom: 5px; box-shadow: 0 -2px 10px rgba(0,0,0,0.2); z-index: 1002; }
+        #theme-options button { display: block; width: 100%; text-align: left; padding: 8px 12px; background: none; border: none; color: var(--sidebar-text); cursor: pointer; }
+        #theme-options button:hover { background-color: #34495e; }
+        
+        /* --- Chat Container --- */
+        .chat-header { display: flex; padding: 10px 15px; border-bottom: 1px solid var(--border-color); align-items: center; flex-shrink: 0; }
+        .chat-header button { background: none; border: none; color: var(--text-color); font-size: 24px; cursor: pointer; margin-right: 10px; }
+        .chat-header h3 { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        #chat-history { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; position: relative; z-index: 5; }
+        #model-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: clamp(5rem, 10vw, 8rem); font-weight: bold; color: var(--watermark-color); z-index: 1; pointer-events: none; user-select: none; text-align: center; }
+        .message { margin-bottom: 25px; padding: 10px 15px; border-radius: 18px; max-width: 80%; line-height: 1.5; position: relative; }
+        .user-message { background-color: var(--user-msg-bg); color: var(--user-msg-text); align-self: flex-end; margin-left: auto; }
+        .assistant-message { background-color: var(--assistant-msg-bg); color: var(--assistant-msg-text); align-self: flex-start; margin-right: auto; white-space: pre-wrap; }
+        .assistant-message pre, .assistant-message code { background-color: rgba(0,0,0,0.1); padding: 2px 4px; border-radius: 3px; font-family: 'Courier New', Courier, monospace; }
+        .assistant-message pre { padding: 10px; white-space: pre-wrap; word-wrap: break-word; }
+        .assistant-message p { margin: 0 0 10px 0; }
+        .assistant-message p:last-child { margin-bottom: 0; }
+        .message .timestamp { font-size: 0.75em; color: #999; margin-top: 5px; text-align: right; }
+        .edit-btn { position: absolute; bottom: -20px; left: 10px; cursor: pointer; display: none; font-size: 14px; opacity: 0.6; color: var(--text-color); }
+        .user-message:hover .edit-btn { display: block; }
+        #input-area { padding: 15px 20px; border-top: 1px solid var(--border-color); background-color: var(--input-bg); flex-shrink: 0; }
+        #input-area form { display: flex; align-items: flex-end; gap: 10px; position: relative; }
+        #prompt-input { flex-grow: 1; padding: 10px 15px; border: 1px solid var(--border-color); border-radius: 20px; font-size: 16px; font-family: inherit; background-color: var(--chat-bg); color: var(--text-color); resize: none; overflow-y: auto; line-height: 1.4; max-height: 250px; }
+        #prompt-input:focus { outline: none; border-color: var(--primary-color); }
+        #submit-button { padding: 10px 20px; border: none; background-color: var(--primary-color); color: var(--user-msg-text); border-radius: 20px; cursor: pointer; font-size: 16px; align-self: flex-end; }
+        #stop-generating-btn { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); padding: 8px 15px; border: 1px solid var(--danger-color); background-color: transparent; color: var(--danger-color); border-radius: 20px; cursor: pointer; font-size: 14px; display: none; }
+        body.is-generating #submit-button { display: none; }
+        body.is-generating #stop-generating-btn { display: block; }
+        .select-hide { display: none; }
+        .select-items div { color: var(--sidebar-text); padding: 8px 12px; cursor: pointer; }
+        .select-items div:hover { background-color: #34495e; }
+        .inline-editor { width: 100%; box-sizing: border-box; }
+        .inline-editor textarea { width: 100%; padding: 8px; border: 1px solid var(--primary-color); border-radius: 5px; background-color: var(--chat-bg); color: var(--text-color); font-family: inherit; font-size: inherit; resize: none; overflow-y: hidden; box-sizing: border-box; }
+        .inline-editor-actions { margin-top: 5px; display: flex; justify-content: flex-end; gap: 5px; }
+        .inline-editor-actions button { padding: 4px 8px; font-size: 12px; border-radius: 4px; cursor: pointer; background-color: var(--primary-color); color: var(--user-msg-text); border: 1px solid var(--primary-color); }
+        .inline-editor-actions button.cancel { background-color: transparent; color: var(--text-color); border: 1px solid var(--border-color); }
+    </style>
+</head>
+<body class="theme-dark"> 
+
+    <div id="sidebar">
+    <div class="sidebar-header">
+                <!-- ** Sidebar Close Button ** -->
+                <button id="sidebar-close-btn">«</button>
+                <h2 data-i18n="historyTitle">歷史對話</h2>
+                <div class="sidebar-controls">
+                    <button id="lang-switcher">EN</button>
+                </div>
+            </div>
+        <button id="new-chat-btn" data-i18n="newChat">新的對話</button>
+        <ul id="conversation-list"></ul>
+        <div class="sidebar-footer">
+            <div id="custom-model-selector" class="custom-select-container">
+                <div class="select-selected">Loading...</div>
+                <div class="select-items select-hide"></div>
+            </div>
+            <div class="theme-selector-container">
+                <div id="theme-options"> <button data-theme="theme-dark" data-i18n="themeDark">夜間模式</button> <button data-theme="theme-default" data-i18n="themeDefault">預設</button> <button data-theme="theme-retro" data-i18n="themeRetro">復古</button> <button data-theme="theme-terminal" data-i18n="themeTerminal">終端</button> </div>
+                <button id="theme-toggle-btn" data-i18n="themeToggle">主題</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-container">
+        <div class="chat-header"> <button id="sidebar-toggle-btn">☰</button> <h3 id="current-chat-title"></h3> </div>
+        <div id="model-watermark"></div>
+        <div id="chat-history"></div>
+        <div id="input-area"> <form id="chat-form"> <textarea id="prompt-input" rows="1" data-i18n-placeholder="inputPlaceholder" placeholder="在這裡輸入..."></textarea> <button id="submit-button" type="submit" data-i18n="sendButton">發送</button> <button id="stop-generating-btn" type="button" data-i18n="stopButton">停止</button> </form> </div>
+    </div>
+
+    <script>
+    // The Javascript logic remains almost identical to the last fully working version.
+    // The fixes are primarily in the CSS and initial state management.
+    document.addEventListener("DOMContentLoaded", () => {
+        const elements = { body: document.body, sidebar: document.getElementById('sidebar'), sidebarToggleBtn: document.getElementById('sidebar-toggle-btn'), currentChatTitle: document.getElementById('current-chat-title'), chatHistory: document.getElementById('chat-history'), chatForm: document.getElementById('chat-form'), promptInput: document.getElementById('prompt-input'), conversationList: document.getElementById('conversation-list'), newChatBtn: document.getElementById('new-chat-btn'), modelSelector: document.getElementById('custom-model-selector'), langSwitcher: document.getElementById('lang-switcher'), modelWatermark: document.getElementById('model-watermark'), submitButton: document.getElementById('submit-button'), stopGeneratingBtn: document.getElementById('stop-generating-btn'), themeToggleBtn: document.getElementById('theme-toggle-btn'), themeOptions: document.getElementById('theme-options'), sidebarCloseBtn: document.getElementById('sidebar-close-btn'), };
+        let currentConversationId = null;
+        let currentLang = localStorage.getItem('lang') || 'zh';
+        const translations = { en: { pageTitle: "My Private LLM", historyTitle: "History", newChat: "New Chat", inputPlaceholder: "Type here...", sendButton: "Send", renamePrompt: "Enter new title:", currentChatTitle: "New Chat", stopButton: "Stop", deleteConfirm: "Are you sure you want to delete this conversation?", themeToggle: "Theme", themeDefault: "Default", themeDark: "Dark", themeRetro: "Retro", themeTerminal: "Terminal", save: "Save", cancel: "Cancel"}, zh: { pageTitle: "Local-llm", historyTitle: "歷史對話", newChat: "新的對話", inputPlaceholder: "在這裡輸入...", sendButton: "發送", renamePrompt: "請輸入新標題:", currentChatTitle: "新的對話", stopButton: "停止", deleteConfirm: "您確定要刪除此對話嗎？", themeToggle: "主題", themeDefault: "預設", themeDark: "夜間模式", themeRetro: "復古", themeTerminal: "終端", save: "保存", cancel: "取消"}, };
+        const t = (key) => translations[currentLang][key] || key;
+        let abortController = new AbortController();
+
+        function createInlineEditor(originalElement, initialValue, onSave, onCancel) { const editorWrapper = document.createElement('div'); editorWrapper.className = 'inline-editor'; const textarea = document.createElement('textarea'); textarea.value = initialValue; const actions = document.createElement('div'); actions.className = 'inline-editor-actions'; const saveBtn = document.createElement('button'); saveBtn.textContent = t('save'); const cancelBtn = document.createElement('button'); cancelBtn.className = 'cancel'; cancelBtn.textContent = t('cancel'); actions.appendChild(saveBtn); actions.appendChild(cancelBtn); editorWrapper.appendChild(textarea); editorWrapper.appendChild(actions); const autoResizeTextarea = () => { textarea.style.height = 'auto'; textarea.style.height = `${textarea.scrollHeight}px`; }; textarea.addEventListener('input', autoResizeTextarea); const cleanup = () => { originalElement.style.display = ''; editorWrapper.replaceWith(originalElement); }; saveBtn.onclick = () => { const newValue = textarea.value.trim(); if (newValue) { onSave(newValue); } cleanup(); }; cancelBtn.onclick = () => { onCancel(); cleanup(); }; originalElement.style.display = 'none'; originalElement.after(editorWrapper); autoResizeTextarea(); textarea.focus(); textarea.select(); }
+        async function renameConversation(id, oldTitle) { const li = elements.conversationList.querySelector(`[data-id='${id}']`); const titleSpan = li.querySelector('.title'); if (!titleSpan) return; createInlineEditor(titleSpan, oldTitle, async (newTitle) => { if (newTitle !== oldTitle) { titleSpan.textContent = newTitle; await fetch(`/api/conversations/${id}/title`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: newTitle }) }); loadConversations(); } }, () => {}); }
+        async function editAndRegenerate(messageId, currentContent) { abortController.abort(); const messageDiv = document.getElementById(`message-${messageId}`); const contentDiv = messageDiv.querySelector('.content'); if (!contentDiv) return; createInlineEditor(contentDiv, currentContent, async (newPrompt) => { contentDiv.textContent = newPrompt; let nextElement = messageDiv.nextElementSibling; while (nextElement) { const toRemove = nextElement; nextElement = nextElement.nextElementSibling; toRemove.remove(); } const selectedModel = elements.modelSelector.querySelector('.select-selected').dataset.value; await handleStreamRequest('/api/regenerate', { message_id: messageId, new_prompt: newPrompt, model: selectedModel }); }, () => {}); }
+        function setTheme(theme) { document.body.className = ''; document.body.classList.add(theme); if (localStorage.getItem('sidebar-toggled') === 'true' && window.innerWidth > 768) { document.body.classList.add('sidebar-toggled'); } localStorage.setItem('theme', theme); }
+        function updateModelDisplay(modelName) { if (!modelName) { const currentModel = elements.modelSelector.querySelector('.select-selected')?.dataset.value; if (!currentModel) return; modelName = currentModel; } elements.modelWatermark.textContent = modelName.split(':')[0]; const selectedDiv = elements.modelSelector.querySelector('.select-selected'); selectedDiv.textContent = modelName; selectedDiv.dataset.value = modelName; }
+        function setLanguage(lang) { currentLang = lang; localStorage.setItem('lang', lang); elements.langSwitcher.textContent = lang === 'en' ? '中' : 'EN'; document.querySelectorAll('[data-i18n]').forEach(el => { const key = el.getAttribute('data-i18n'); el.textContent = t(key); }); document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { const key = el.getAttribute('data-i18n-placeholder'); el.placeholder = t(key); }); document.title = t('pageTitle'); elements.currentChatTitle.textContent = currentConversationId ? elements.currentChatTitle.textContent : t('currentChatTitle'); }
+        async function loadModels() { try { const response = await fetch('/api/models'); if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`); const models = await response.json(); const itemsContainer = elements.modelSelector.querySelector('.select-items'); const selectedDiv = elements.modelSelector.querySelector('.select-selected'); itemsContainer.innerHTML = ''; if (models.length === 0) { selectedDiv.textContent = 'No Models'; return; } models.forEach((model, index) => { const itemDiv = document.createElement('div'); itemDiv.textContent = model.name; itemDiv.dataset.value = model.name; itemDiv.addEventListener('click', function(e) { e.stopPropagation(); updateModelDisplay(this.dataset.value); closeAllSelect(); }); itemsContainer.appendChild(itemDiv); if (index === 0) { updateModelDisplay(model.name); } }); } catch (error) { console.error('Error loading models:', error); elements.modelSelector.querySelector('.select-selected').textContent = 'Error'; } }
+        function closeAllSelect(elmnt) { document.querySelectorAll(".select-items").forEach(item => item.classList.add("select-hide")); if (elmnt !== elements.themeToggleBtn) { elements.themeOptions.style.display = 'none'; } }
+        async function loadConversations() { const response = await fetch('/api/conversations'); const conversations = await response.json(); elements.conversationList.innerHTML = ''; conversations.forEach(conv => { const li = document.createElement('li'); li.dataset.id = conv.id; if (conv.id === currentConversationId) { li.classList.add('active'); elements.currentChatTitle.textContent = conv.title; } const titleSpan = document.createElement('span'); titleSpan.className = 'title'; titleSpan.textContent = conv.title; li.appendChild(titleSpan); const actionsDiv = document.createElement('div'); actionsDiv.className = 'conv-actions'; const renameBtn = document.createElement('button'); renameBtn.textContent = '✎'; renameBtn.onclick = (e) => { e.stopPropagation(); renameConversation(conv.id, conv.title); }; actionsDiv.appendChild(renameBtn); const deleteBtn = document.createElement('button'); deleteBtn.textContent = '🗑️'; deleteBtn.onclick = (e) => { e.stopPropagation(); deleteConversation(conv.id); }; actionsDiv.appendChild(deleteBtn); li.appendChild(actionsDiv); elements.conversationList.appendChild(li); });}
+        async function deleteConversation(id) { if (confirm(t('deleteConfirm'))) { await fetch(`/api/conversations/${id}`, { method: 'DELETE' }); if (currentConversationId === id) { startNewChat(); } await loadConversations(); } }
+        async function loadConversationHistory(conversationId) { if (!conversationId) return; abortController.abort(); currentConversationId = conversationId; const response = await fetch(`/api/conversations/${conversationId}`); const messages = await response.json(); elements.chatHistory.innerHTML = ''; messages.forEach(addMessageToChat); document.querySelectorAll('#conversation-list li').forEach(li => { const isActive = parseInt(li.dataset.id) === conversationId; li.classList.toggle('active', isActive); if (isActive) { elements.currentChatTitle.textContent = li.querySelector('.title').textContent; } }); updateModelDisplay(); if (window.innerWidth <= 768) { document.body.classList.remove('sidebar-toggled'); } }
+        function addMessageToChat(message, isNewUserMessage = false) { const messageDiv = document.createElement('div'); if (message.id) { messageDiv.id = `message-${message.id}`; } messageDiv.className = `message ${message.role}-message`; const contentDiv = document.createElement('div'); contentDiv.className = 'content'; if (message.role === 'assistant') { contentDiv.innerHTML = marked.parse(message.content || '', { sanitize: true }); } else { contentDiv.textContent = message.content; } messageDiv.appendChild(contentDiv); const timeDiv = document.createElement('div'); timeDiv.className = 'timestamp'; const timestamp = isNewUserMessage ? new Date() : new Date(message.created_at); timeDiv.textContent = timestamp.toLocaleString(); messageDiv.appendChild(timeDiv); if (message.role === 'user' && message.id) { const editBtn = document.createElement('span'); editBtn.className = 'edit-btn'; editBtn.textContent = '✎'; editBtn.onclick = () => editAndRegenerate(message.id, message.content); messageDiv.appendChild(editBtn); } elements.chatHistory.appendChild(messageDiv); elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight; return messageDiv; }
+        async function handleStreamRequest(url, body) { abortController = new AbortController(); document.body.classList.add('is-generating'); if (url === '/api/chat') { addMessageToChat({ role: 'user', content: body.prompt }, true); } try { const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: abortController.signal }); if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); } const reader = response.body.getReader(); const decoder = new TextDecoder(); let assistantMessageDiv = null; let fullAssistantResponse = ""; let buffer = ''; while (true) { const { value, done } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split('\n\n'); buffer = lines.pop(); for (const line of lines) { if (line.startsWith('data: ')) { try { const data = JSON.parse(line.substring(6)); if (data.error) { throw new Error(data.error); } if (data.user_message) { if (currentConversationId === null) { currentConversationId = data.conversation_id; await loadConversations(); } const userMsgDiv = Array.from(elements.chatHistory.querySelectorAll('.user-message')).pop(); if (userMsgDiv && !userMsgDiv.id) { userMsgDiv.id = `message-${data.user_message.id}`; const editBtn = document.createElement('span'); editBtn.className = 'edit-btn'; editBtn.textContent = '✎'; editBtn.onclick = () => editAndRegenerate(data.user_message.id, data.user_message.content); userMsgDiv.appendChild(editBtn); } } if (data.content) { if (!assistantMessageDiv) { assistantMessageDiv = addMessageToChat({ role: 'assistant', content: '', created_at: new Date() }); } fullAssistantResponse += data.content; assistantMessageDiv.querySelector('.content').innerHTML = marked.parse(fullAssistantResponse, { sanitize: true }); elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight; } if (data.done) { const finalTimestamp = new Date(data.message.created_at).toLocaleString(); if (assistantMessageDiv) { assistantMessageDiv.querySelector('.timestamp').textContent = finalTimestamp; } return; } } catch(e) { console.error("Error parsing stream data: ", line, e); } } } } } catch (error) { if (error.name !== 'AbortError') { console.error('Fetch error:', error); addMessageToChat({role: 'assistant', content: `Error: ${error.message}`}, true); } } finally { document.body.classList.remove('is-generating'); } }
+        function startNewChat() { abortController.abort(); currentConversationId = null; elements.chatHistory.innerHTML = ''; elements.promptInput.value = ''; elements.promptInput.focus(); elements.currentChatTitle.textContent = t('currentChatTitle'); document.querySelectorAll('#conversation-list li').forEach(li => li.classList.remove('active')); updateModelDisplay(); if (window.innerWidth <= 768) { document.body.classList.remove('sidebar-toggled'); } }
+        
+        elements.promptInput.addEventListener('input', () => { elements.promptInput.style.height = 'auto'; elements.promptInput.style.height = (elements.promptInput.scrollHeight) + 'px'; });
+        elements.modelSelector.querySelector('.select-selected').addEventListener('click', function(e) { e.stopPropagation(); closeAllSelect(this); this.parentElement.querySelector('.select-items').classList.toggle("select-hide"); });
+        document.addEventListener("click", closeAllSelect);
+        elements.chatForm.addEventListener('submit', async (e) => { e.preventDefault(); const prompt = elements.promptInput.value.trim(); if (!prompt) return; const selectedDiv = elements.modelSelector.querySelector('.select-selected'); const selectedModel = selectedDiv.dataset.value; if (!selectedModel || selectedModel === 'Loading...' || selectedModel === 'No Models' || selectedModel === 'Error') { alert('Please wait for models to load or select a valid model.'); return; } elements.promptInput.value = ''; elements.promptInput.style.height = 'auto'; await handleStreamRequest('/api/chat', { prompt, model: selectedModel, conversation_id: currentConversationId }); });
+        elements.sidebarToggleBtn.addEventListener('click', () => { document.body.classList.toggle('sidebar-toggled'); localStorage.setItem('sidebar-toggled', document.body.classList.contains('sidebar-toggled')); });
+                elements.sidebarCloseBtn.addEventListener('click', () => {
+            document.body.classList.remove('sidebar-toggled');
+            localStorage.setItem('sidebar-toggled', 'false');
+        });
+        elements.langSwitcher.addEventListener('click', () => { setLanguage(currentLang === 'en' ? 'zh' : 'en'); });
+        elements.conversationList.addEventListener('click', (e) => { const li = e.target.closest('li'); if (li) { const conversationId = parseInt(li.dataset.id); loadConversationHistory(conversationId); } });
+        elements.newChatBtn.addEventListener('click', startNewChat);
+        elements.stopGeneratingBtn.addEventListener('click', () => { abortController.abort(); });
+        elements.themeToggleBtn.addEventListener('click', (e) => { e.stopPropagation(); elements.themeOptions.style.display = elements.themeOptions.style.display === 'block' ? 'none' : 'block'; });
+        document.querySelectorAll('#theme-options button').forEach(button => { button.addEventListener('click', function() { setTheme(this.dataset.theme); elements.themeOptions.style.display = 'none'; }); });
+        
+        const savedTheme = localStorage.getItem('theme') || 'theme-dark';
+        setTheme(savedTheme);
+        
+        // ** Initial Sidebar State Logic **
+        if (window.innerWidth <= 768) {
+            document.body.classList.remove('sidebar-toggled');
+        } else {
+            if (localStorage.getItem('sidebar-toggled') === 'false') {
+                document.body.classList.remove('sidebar-toggled');
+            } else {
+                document.body.classList.add('sidebar-toggled');
+            }
+        }
+        
+        setLanguage(currentLang);
+        loadConversations();
+        loadModels();
+    });
+    </script>
+</body>
+</html>
