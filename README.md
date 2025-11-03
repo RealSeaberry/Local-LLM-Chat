@@ -1,6 +1,6 @@
 # Local LLM Chat
 
-
+![Screenshot of the dark theme](demo/demo/Screenshot_4.png)
 This is a minimalist prototype of a private, web-based chat application for Large Language Models (LLMs), built with Ollama and FastAPI. It allows you to deploy a language model service on your local machine and access it securely from any device on your local network (e.g., phone, tablet).
 
 As a **prototype**, this project is primarily intended for personal experimentation and learning. It provides a basic yet feature-complete chat experience, including:
@@ -112,4 +112,7 @@ You will need **three separate** terminal windows to run all the services.
 *   Integrate the `caddy-security` plugin for a more user-friendly login page.
 *   Implement more sophisticated context management strategies (e.g., summarization).
 *   Further refine the mobile UI/UX.
-
+*   
+![memory-test-1](demo/demo/Screenshot_1.png)
+![memory-test-2](demo/demo/Screenshot_2.png)
+![Screenshot of the default theme](demo/demo/Screenshot_3.png)
