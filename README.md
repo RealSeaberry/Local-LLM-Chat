@@ -112,7 +112,7 @@ You will need **three separate** terminal windows to run all the services.
 *   Integrate the `caddy-security` plugin for a more user-friendly login page.
 *   Implement more sophisticated context management strategies (e.g., summarization).
 *   Further refine the mobile UI/UX.
-*   
+  
 ![memory-test-1](demo/Screenshot_1.png)
 ![memory-test-2](demo/Screenshot_2.png)
 ![Screenshot of the default theme](demo/Screenshot_3.png)
