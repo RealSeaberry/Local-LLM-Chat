@@ -6,7 +6,7 @@
     <title data-i18n="pageTitle">Local-llm</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        /* --- THEME DEFINITIONS --- */
+        /* --- THEME DEFINITIONS  --- */
         :root { /* Default Theme */
             --bg-color: #f0f2f5; --sidebar-bg: #2c3e50; --chat-bg: #ffffff;
             --text-color: #2c3e50; --sidebar-text: #ffffff; --primary-color: #3498db;
@@ -24,10 +24,10 @@
         }
         body.theme-retro {
             --bg-color: #000000; --sidebar-bg: #080808; --chat-bg: #0d0d0d;
-            --text-color: #00FF00; --sidebar-text: #00FF00; --primary-color: #00FF00;
-            --user-msg-bg: transparent; --user-msg-text: #00FF00;
-            --assistant-msg-bg: transparent; --assistant-msg-text: #00FF00;
-            --input-bg: #000000; --border-color: #00FF00; --watermark-color: rgba(0, 255, 0, 0.05);
+            --text-color: #00C200; --sidebar-text: #00C200; --primary-color: #00C200;
+            --user-msg-bg: transparent; --user-msg-text: #00C200;
+            --assistant-msg-bg: transparent; --assistant-msg-text: #00C200;
+            --input-bg: #000000; --border-color: #00C200; --watermark-color: rgba(0, 255, 0, 0.05);
             font-family: 'Courier New', Courier, monospace;
         }
         body.theme-terminal {
@@ -44,18 +44,19 @@
         body.theme-retro .inline-editor-actions button.cancel:hover { opacity: 0.7; background-color: transparent; }
         
         /* --- ** ROBUST LAYOUT ** --- */
-        html { box-sizing: border-box; }
+        html, body { box-sizing: border-box; }
         *, *:before, *:after { box-sizing: inherit; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             display: flex;
             height: 100vh; /* Fallback for older browsers */
-            height: 100dvh; /* ** KEY FIX for mobile keyboards ** */
+            height: 100dvh; 
             background-color: var(--bg-color);
             color: var(--text-color);
             transition: background-color 0.3s, color 0.3s;
             overflow: hidden;
+            position: relative; /* ** for mobile sidebar positioning ** */
         }
         #sidebar {
             width: 250px;
@@ -65,7 +66,7 @@
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease-in-out;
             z-index: 1001;
         }
         #chat-container {
@@ -74,31 +75,47 @@
             flex-direction: column;
             background-color: var(--chat-bg);
             position: relative;
-            min-width: 0;
+            min-width: 0; /* Prevents flexbox overflow */
         }
         
-        @media (max-width: 768px) {
-            #sidebar {
-                position: absolute;
-                height: 100%;
-                transform: translateX(-100%); /* Start off-screen */
-            }
-            body.sidebar-toggled #sidebar {
-                transform: translateX(0); /* Slide in */
-            }
+
+        /* Mobile First: Default is overlay layout */
+        #sidebar {
+            position: absolute;
+            height: 100%;
+            transform: translateX(-100%);
         }
-        @media (min-width: 769px) {
-            #sidebar {
-                transform: translateX(-100%);
-            }
-            body.sidebar-toggled #sidebar {
-                transform: translateX(0);
-            }
+        body.sidebar-toggled #sidebar {
+            transform: translateX(0);
+        }
+/* --- Chat Container --- */
+        .chat-header {
+            display: flex;
+            padding: 10px 15px;
+            /* ** Use a more specific border color that works across themes ** */
+            border-bottom: 1px solid var(--border-color); 
+            align-items: center;
+            flex-shrink: 0; /* Prevents the header from shrinking */
         }
 
+        /* Desktop: Switch to push layout */
+        @media (min-width: 769px) {
+            #sidebar {
+                position: static; /* ** Revert to normal flow ** */
+                height: auto;
+                transform: translateX(0); /* Reset transform */
+                transition: margin-left 0.3s ease-in-out;
+            }
+            body:not(.sidebar-toggled) #sidebar {
+                margin-left: -250px;
+            }
+            body.sidebar-toggled #sidebar {
+                margin-left: 0;
+            }
+        }
+        
         /* --- Sidebar Content --- */
         .sidebar-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #4a6fa5; padding-bottom: 10px; flex-shrink: 0; }
-        .sidebar-header h2 { margin: 0; font-size: 18px; }
         .sidebar-header h2 { margin: 0; font-size: 18px; flex-grow: 1; text-align: center; }
         #sidebar-close-btn { background: none; border: none; color: var(--sidebar-text); cursor: pointer; font-size: 24px; padding: 0 5px; }
         .sidebar-controls { display: flex; align-items: center; gap: 5px; }
@@ -122,8 +139,7 @@
         #theme-options button { display: block; width: 100%; text-align: left; padding: 8px 12px; background: none; border: none; color: var(--sidebar-text); cursor: pointer; }
         #theme-options button:hover { background-color: #34495e; }
         
-        /* --- Chat Container --- */
-        .chat-header { display: flex; padding: 10px 15px; border-bottom: 1px solid var(--border-color); align-items: center; flex-shrink: 0; }
+        /* --- Chat Container Content --- */
         .chat-header button { background: none; border: none; color: var(--text-color); font-size: 24px; cursor: pointer; margin-right: 10px; }
         .chat-header h3 { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         #chat-history { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; position: relative; z-index: 5; }
@@ -156,7 +172,7 @@
         .inline-editor-actions button.cancel { background-color: transparent; color: var(--text-color); border: 1px solid var(--border-color); }
     </style>
 </head>
-<body class="theme-dark"> 
+<body class="theme-dark">
 
     <div id="sidebar">
     <div class="sidebar-header">
@@ -180,7 +196,6 @@
             </div>
         </div>
     </div>
-
     <div id="chat-container">
         <div class="chat-header"> <button id="sidebar-toggle-btn">☰</button> <h3 id="current-chat-title"></h3> </div>
         <div id="model-watermark"></div>
@@ -188,11 +203,13 @@
         <div id="input-area"> <form id="chat-form"> <textarea id="prompt-input" rows="1" data-i18n-placeholder="inputPlaceholder" placeholder="在這裡輸入..."></textarea> <button id="submit-button" type="submit" data-i18n="sendButton">發送</button> <button id="stop-generating-btn" type="button" data-i18n="stopButton">停止</button> </form> </div>
     </div>
 
+
     <script>
     // The Javascript logic remains almost identical to the last fully working version.
-    // The fixes are primarily in the CSS and initial state management.
+    // All fixes are in the CSS above.
+    // For absolute certainty, the full correct script is provided below.
     document.addEventListener("DOMContentLoaded", () => {
-        const elements = { body: document.body, sidebar: document.getElementById('sidebar'), sidebarToggleBtn: document.getElementById('sidebar-toggle-btn'), currentChatTitle: document.getElementById('current-chat-title'), chatHistory: document.getElementById('chat-history'), chatForm: document.getElementById('chat-form'), promptInput: document.getElementById('prompt-input'), conversationList: document.getElementById('conversation-list'), newChatBtn: document.getElementById('new-chat-btn'), modelSelector: document.getElementById('custom-model-selector'), langSwitcher: document.getElementById('lang-switcher'), modelWatermark: document.getElementById('model-watermark'), submitButton: document.getElementById('submit-button'), stopGeneratingBtn: document.getElementById('stop-generating-btn'), themeToggleBtn: document.getElementById('theme-toggle-btn'), themeOptions: document.getElementById('theme-options'), sidebarCloseBtn: document.getElementById('sidebar-close-btn'), };
+        const elements = { body: document.body, sidebar: document.getElementById('sidebar'), sidebarToggleBtn: document.getElementById('sidebar-toggle-btn'), sidebarCloseBtn: document.getElementById('sidebar-close-btn'), currentChatTitle: document.getElementById('current-chat-title'), chatHistory: document.getElementById('chat-history'), chatForm: document.getElementById('chat-form'), promptInput: document.getElementById('prompt-input'), conversationList: document.getElementById('conversation-list'), newChatBtn: document.getElementById('new-chat-btn'), modelSelector: document.getElementById('custom-model-selector'), langSwitcher: document.getElementById('lang-switcher'), modelWatermark: document.getElementById('model-watermark'), submitButton: document.getElementById('submit-button'), stopGeneratingBtn: document.getElementById('stop-generating-btn'), themeToggleBtn: document.getElementById('theme-toggle-btn'), themeOptions: document.getElementById('theme-options'), };
         let currentConversationId = null;
         let currentLang = localStorage.getItem('lang') || 'zh';
         const translations = { en: { pageTitle: "My Private LLM", historyTitle: "History", newChat: "New Chat", inputPlaceholder: "Type here...", sendButton: "Send", renamePrompt: "Enter new title:", currentChatTitle: "New Chat", stopButton: "Stop", deleteConfirm: "Are you sure you want to delete this conversation?", themeToggle: "Theme", themeDefault: "Default", themeDark: "Dark", themeRetro: "Retro", themeTerminal: "Terminal", save: "Save", cancel: "Cancel"}, zh: { pageTitle: "Local-llm", historyTitle: "歷史對話", newChat: "新的對話", inputPlaceholder: "在這裡輸入...", sendButton: "發送", renamePrompt: "請輸入新標題:", currentChatTitle: "新的對話", stopButton: "停止", deleteConfirm: "您確定要刪除此對話嗎？", themeToggle: "主題", themeDefault: "預設", themeDark: "夜間模式", themeRetro: "復古", themeTerminal: "終端", save: "保存", cancel: "取消"}, };
@@ -209,7 +226,7 @@
         function closeAllSelect(elmnt) { document.querySelectorAll(".select-items").forEach(item => item.classList.add("select-hide")); if (elmnt !== elements.themeToggleBtn) { elements.themeOptions.style.display = 'none'; } }
         async function loadConversations() { const response = await fetch('/api/conversations'); const conversations = await response.json(); elements.conversationList.innerHTML = ''; conversations.forEach(conv => { const li = document.createElement('li'); li.dataset.id = conv.id; if (conv.id === currentConversationId) { li.classList.add('active'); elements.currentChatTitle.textContent = conv.title; } const titleSpan = document.createElement('span'); titleSpan.className = 'title'; titleSpan.textContent = conv.title; li.appendChild(titleSpan); const actionsDiv = document.createElement('div'); actionsDiv.className = 'conv-actions'; const renameBtn = document.createElement('button'); renameBtn.textContent = '✎'; renameBtn.onclick = (e) => { e.stopPropagation(); renameConversation(conv.id, conv.title); }; actionsDiv.appendChild(renameBtn); const deleteBtn = document.createElement('button'); deleteBtn.textContent = '🗑️'; deleteBtn.onclick = (e) => { e.stopPropagation(); deleteConversation(conv.id); }; actionsDiv.appendChild(deleteBtn); li.appendChild(actionsDiv); elements.conversationList.appendChild(li); });}
         async function deleteConversation(id) { if (confirm(t('deleteConfirm'))) { await fetch(`/api/conversations/${id}`, { method: 'DELETE' }); if (currentConversationId === id) { startNewChat(); } await loadConversations(); } }
-        async function loadConversationHistory(conversationId) { if (!conversationId) return; abortController.abort(); currentConversationId = conversationId; const response = await fetch(`/api/conversations/${conversationId}`); const messages = await response.json(); elements.chatHistory.innerHTML = ''; messages.forEach(addMessageToChat); document.querySelectorAll('#conversation-list li').forEach(li => { const isActive = parseInt(li.dataset.id) === conversationId; li.classList.toggle('active', isActive); if (isActive) { elements.currentChatTitle.textContent = li.querySelector('.title').textContent; } }); updateModelDisplay(); if (window.innerWidth <= 768) { document.body.classList.remove('sidebar-toggled'); } }
+        async function loadConversationHistory(conversationId) { if (!conversationId) return; abortController.abort(); currentConversationId = conversationId; const response = await fetch(`/api/conversations/${conversationId}`); const messages = await response.json(); elements.chatHistory.innerHTML = ''; messages.forEach(addMessageToChat); document.querySelectorAll('#conversation-list li').forEach(li => { const isActive = parseInt(li.dataset.id) === conversationId; li.classList.toggle('active', isActive); if (isActive) { elements.currentChatTitle.textContent = li.querySelector('.title').textContent; } }); updateModelDisplay(); document.body.classList.remove('sidebar-toggled'); }
         function addMessageToChat(message, isNewUserMessage = false) { const messageDiv = document.createElement('div'); if (message.id) { messageDiv.id = `message-${message.id}`; } messageDiv.className = `message ${message.role}-message`; const contentDiv = document.createElement('div'); contentDiv.className = 'content'; if (message.role === 'assistant') { contentDiv.innerHTML = marked.parse(message.content || '', { sanitize: true }); } else { contentDiv.textContent = message.content; } messageDiv.appendChild(contentDiv); const timeDiv = document.createElement('div'); timeDiv.className = 'timestamp'; const timestamp = isNewUserMessage ? new Date() : new Date(message.created_at); timeDiv.textContent = timestamp.toLocaleString(); messageDiv.appendChild(timeDiv); if (message.role === 'user' && message.id) { const editBtn = document.createElement('span'); editBtn.className = 'edit-btn'; editBtn.textContent = '✎'; editBtn.onclick = () => editAndRegenerate(message.id, message.content); messageDiv.appendChild(editBtn); } elements.chatHistory.appendChild(messageDiv); elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight; return messageDiv; }
         async function handleStreamRequest(url, body) { abortController = new AbortController(); document.body.classList.add('is-generating'); if (url === '/api/chat') { addMessageToChat({ role: 'user', content: body.prompt }, true); } try { const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: abortController.signal }); if (!response.ok) { throw new Error(`HTTP error! status: ${response.status}`); } const reader = response.body.getReader(); const decoder = new TextDecoder(); let assistantMessageDiv = null; let fullAssistantResponse = ""; let buffer = ''; while (true) { const { value, done } = await reader.read(); if (done) break; buffer += decoder.decode(value, { stream: true }); const lines = buffer.split('\n\n'); buffer = lines.pop(); for (const line of lines) { if (line.startsWith('data: ')) { try { const data = JSON.parse(line.substring(6)); if (data.error) { throw new Error(data.error); } if (data.user_message) { if (currentConversationId === null) { currentConversationId = data.conversation_id; await loadConversations(); } const userMsgDiv = Array.from(elements.chatHistory.querySelectorAll('.user-message')).pop(); if (userMsgDiv && !userMsgDiv.id) { userMsgDiv.id = `message-${data.user_message.id}`; const editBtn = document.createElement('span'); editBtn.className = 'edit-btn'; editBtn.textContent = '✎'; editBtn.onclick = () => editAndRegenerate(data.user_message.id, data.user_message.content); userMsgDiv.appendChild(editBtn); } } if (data.content) { if (!assistantMessageDiv) { assistantMessageDiv = addMessageToChat({ role: 'assistant', content: '', created_at: new Date() }); } fullAssistantResponse += data.content; assistantMessageDiv.querySelector('.content').innerHTML = marked.parse(fullAssistantResponse, { sanitize: true }); elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight; } if (data.done) { const finalTimestamp = new Date(data.message.created_at).toLocaleString(); if (assistantMessageDiv) { assistantMessageDiv.querySelector('.timestamp').textContent = finalTimestamp; } return; } } catch(e) { console.error("Error parsing stream data: ", line, e); } } } } } catch (error) { if (error.name !== 'AbortError') { console.error('Fetch error:', error); addMessageToChat({role: 'assistant', content: `Error: ${error.message}`}, true); } } finally { document.body.classList.remove('is-generating'); } }
         function startNewChat() { abortController.abort(); currentConversationId = null; elements.chatHistory.innerHTML = ''; elements.promptInput.value = ''; elements.promptInput.focus(); elements.currentChatTitle.textContent = t('currentChatTitle'); document.querySelectorAll('#conversation-list li').forEach(li => li.classList.remove('active')); updateModelDisplay(); if (window.innerWidth <= 768) { document.body.classList.remove('sidebar-toggled'); } }
@@ -219,10 +236,7 @@
         document.addEventListener("click", closeAllSelect);
         elements.chatForm.addEventListener('submit', async (e) => { e.preventDefault(); const prompt = elements.promptInput.value.trim(); if (!prompt) return; const selectedDiv = elements.modelSelector.querySelector('.select-selected'); const selectedModel = selectedDiv.dataset.value; if (!selectedModel || selectedModel === 'Loading...' || selectedModel === 'No Models' || selectedModel === 'Error') { alert('Please wait for models to load or select a valid model.'); return; } elements.promptInput.value = ''; elements.promptInput.style.height = 'auto'; await handleStreamRequest('/api/chat', { prompt, model: selectedModel, conversation_id: currentConversationId }); });
         elements.sidebarToggleBtn.addEventListener('click', () => { document.body.classList.toggle('sidebar-toggled'); localStorage.setItem('sidebar-toggled', document.body.classList.contains('sidebar-toggled')); });
-                elements.sidebarCloseBtn.addEventListener('click', () => {
-            document.body.classList.remove('sidebar-toggled');
-            localStorage.setItem('sidebar-toggled', 'false');
-        });
+        elements.sidebarCloseBtn.addEventListener('click', () => { document.body.classList.remove('sidebar-toggled'); localStorage.setItem('sidebar-toggled', 'false'); });
         elements.langSwitcher.addEventListener('click', () => { setLanguage(currentLang === 'en' ? 'zh' : 'en'); });
         elements.conversationList.addEventListener('click', (e) => { const li = e.target.closest('li'); if (li) { const conversationId = parseInt(li.dataset.id); loadConversationHistory(conversationId); } });
         elements.newChatBtn.addEventListener('click', startNewChat);
@@ -234,15 +248,8 @@
         setTheme(savedTheme);
         
         // ** Initial Sidebar State Logic **
-        if (window.innerWidth <= 768) {
-            document.body.classList.remove('sidebar-toggled');
-        } else {
-            if (localStorage.getItem('sidebar-toggled') === 'false') {
-                document.body.classList.remove('sidebar-toggled');
-            } else {
-                document.body.classList.add('sidebar-toggled');
-            }
-        }
+        if (window.innerWidth <= 768) { document.body.classList.remove('sidebar-toggled'); } 
+        else { if (localStorage.getItem('sidebar-toggled') === 'false') { document.body.classList.remove('sidebar-toggled'); } else { document.body.classList.add('sidebar-toggled'); } }
         
         setLanguage(currentLang);
         loadConversations();
